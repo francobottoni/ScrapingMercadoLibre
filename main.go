@@ -19,6 +19,9 @@ func main() {
 	}
 	defer file.Close()
 
+	//Set here how many pages do you want Scrape
+	var pageUntil = 5
+
 	//Create a Collector
 	c := colly.NewCollector()
 
@@ -27,9 +30,9 @@ func main() {
 	})
 
 	//Ready to call the controller - > found values, next_pages , outpoutCSV
-	controller.Create(c, file)
+	controller.Create(c, file, pageUntil)
 
-	//Place here the site you want to scrape
+	//Place here the site you want to Scrape
 	//Start scraping on https://celulares.mercadolibre.com.ar/telefonos
 	c.Visit("https://celulares.mercadolibre.com.co/telefonos")
 
