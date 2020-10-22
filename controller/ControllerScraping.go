@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 )
 
 type StoreInfo struct {
 	Id               string
+	Store            string
 	Producto         string
 	Precio           string
 	Stock            string
@@ -18,12 +19,23 @@ type StoreInfo struct {
 	CantidadDeVentas string
 }
 
+type BestSeller struct {
+	Store            string
+	CantidadDeVentas string
+}
+
 //Set default values
 var setHeader = 0
 var idProduct = 0
 var countPage = 1
 
-func Create(c *colly.Collector, writer *csv.Writer) {
+var bestStores [10]BestSeller
+var isHaveStore bool = true
+var isEmpty int = -1
+var isMenorPos int = 23         //Set random number
+var cantVentasAux int = 1000000 //Set default number
+
+func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer) {
 
 	// //Move to link publication
 	c.OnHTML("div.ui-search-item__group.ui-search-item__group--title a[href]", func(e *colly.HTMLElement) {
@@ -52,13 +64,16 @@ func Create(c *colly.Collector, writer *csv.Writer) {
 		// Set header if don't have
 		if setHeader == 0 {
 			// Write CSV header
-			writer.Write([]string{"ID", "Tienda", "Producto", "Precio", "Stock", "Garantia", "Ubicacion", "Cantidad de Ventas"})
 			setHeader = setHeader + 1
 		}
+
+		//Call the function that returns Store name
+		store := FoundStoreName(e)
 
 		//Set Store struct
 		infoStore := StoreInfo{
 			Id:               strconv.Itoa(idProduct), //The array writer.Write only receives string,then convert id to string
+			Store:            store,
 			Producto:         producto,
 			Precio:           precio,
 			Stock:            stock,
@@ -67,10 +82,13 @@ func Create(c *colly.Collector, writer *csv.Writer) {
 			CantidadDeVentas: cantidadDeVentas,
 		}
 
+		//Call function BestSeller
+		GenerateBestSellers(infoStore, writerStore)
+
 		//Write the file with obtains values
 		writer.Write([]string{
 			infoStore.Id,
-			"",
+			infoStore.Store,
 			infoStore.Producto,
 			infoStore.Precio,
 			infoStore.Stock,
@@ -78,22 +96,19 @@ func Create(c *colly.Collector, writer *csv.Writer) {
 			infoStore.Ubicacion,
 			infoStore.CantidadDeVentas,
 		})
+		writer.Flush()
 	})
 }
 
-func InsertStoreName(c *colly.Collector, writer *csv.Writer) {
-	c.OnHTML("div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation  a[href]", func(e *colly.HTMLElement) {
+func FoundStoreName(e *colly.HTMLElement) string {
 
-		link := e.Attr("href")
+	//Find the seller's profile link and save it to a string
+	link := e.ChildAttr("div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation > a", "href")
 
-		//fmt.Printf("Link found: -> %s\n", link)
+	//If link is a String and we know the link for all profiles is : https://perfil.mercadolibre.com.co/NAME-PROFAILE
+	//Then we return a string that is assembled from character 35 onwards
+	return string(link[35:])
 
-		//If link is a String and we know the link for all profiles is : https://perfil.mercadolibre.com.co/NAME-PROFAILE
-		//This URL have 35 words until name profile
-		writer.Write([]string{
-			string(link[35:]),
-		})
-	})
 }
 
 func NextPage(c *colly.Collector, pageUntil int) {
@@ -107,4 +122,68 @@ func NextPage(c *colly.Collector, pageUntil int) {
 			c.Visit(e.Request.AbsoluteURL(link))
 		}
 	})
+}
+
+func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer) {
+
+	//If the store has already exist in the Array Aux set isHaveStore false
+	for i := 0; i < len(bestStores); i++ {
+		if bestStores[i].CantidadDeVentas == values.CantidadDeVentas && bestStores[i].Store == values.Store {
+			isHaveStore = false
+		}
+	}
+
+	if isHaveStore == true {
+
+		for i := 0; i < len(bestStores); i++ {
+
+			cantVentas, _ := strconv.Atoi(bestStores[i].CantidadDeVentas)
+
+			//If array bestStores is empty, set this pos in isEmpty
+			if bestStores[i].Store == "" {
+				isEmpty = i
+			} else {
+				for j := 1; j < len(bestStores); j++ {
+					if bestStores[j].CantidadDeVentas != "" {
+						cantVentas1, _ := strconv.Atoi(bestStores[j].CantidadDeVentas)
+						fmt.Println(cantVentas)
+						fmt.Println(cantVentas1)
+						if cantVentas < cantVentas1 {
+							if cantVentas < cantVentasAux {
+								//Set the lowest value and then replace it
+								isMenorPos = i
+								cantVentasAux = cantVentas
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if isMenorPos != 23 {
+			s, _ := strconv.Atoi(bestStores[isMenorPos].CantidadDeVentas)
+			s1, _ := strconv.Atoi(values.CantidadDeVentas)
+			//Replace the lower value with a new higher value
+			if s < s1 {
+				bestStores[isMenorPos] = BestSeller{
+					Store:            values.Store,
+					CantidadDeVentas: values.CantidadDeVentas,
+				}
+			}
+		}
+
+		//If array is Empty, load a value
+		if isEmpty != -1 {
+			bestStores[isEmpty] = BestSeller{
+				Store:            values.Store,
+				CantidadDeVentas: values.CantidadDeVentas,
+			}
+			isEmpty = -1
+		}
+
+	}
+
+	fmt.Println(bestStores)
+	//we set isHaveStore back to true
+	isHaveStore = true
 }
