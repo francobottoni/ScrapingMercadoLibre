@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
 	"os"
@@ -10,7 +11,7 @@ import (
 )
 
 func main() {
-	//Here set the name Output
+	//Here set the name OutputCSV
 	fName := "mercadoliberTelefonosCO.csv"
 	file, err := os.Create(fName)
 	if err != nil {
@@ -18,9 +19,11 @@ func main() {
 		return
 	}
 	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
 
 	//Set here how many pages do you want Scrape
-	var pageUntil = 5
+	var pageUntil = 4
 
 	//Create a Collector
 	c := colly.NewCollector()
@@ -29,8 +32,9 @@ func main() {
 		fmt.Println("Visited", r.Request.URL)
 	})
 
-	//Ready to call the controller - > found values, next_pages , outpoutCSV
-	controller.Create(c, file, pageUntil)
+	controller.Create(c, writer)          //Call the controller Create - > found values, save CSV
+	controller.InsertStoreName(c, writer) //Call the func returns name Store
+	controller.NextPage(c, pageUntil)     //Call next page until page we send
 
 	//Place here the site you want to Scrape
 	//Start scraping on https://celulares.mercadolibre.com.ar/telefonos

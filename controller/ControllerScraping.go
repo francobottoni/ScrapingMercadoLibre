@@ -3,7 +3,6 @@ package CollysFunc
 import (
 	"encoding/csv"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/gocolly/colly"
@@ -24,7 +23,7 @@ var setHeader = 0
 var idProduct = 0
 var countPage = 1
 
-func Create(c *colly.Collector, file *os.File, pageUntil int) {
+func Create(c *colly.Collector, writer *csv.Writer) {
 
 	// //Move to link publication
 	c.OnHTML("div.ui-search-item__group.ui-search-item__group--title a[href]", func(e *colly.HTMLElement) {
@@ -33,6 +32,8 @@ func Create(c *colly.Collector, file *os.File, pageUntil int) {
 		c.Visit(e.Request.AbsoluteURL(link))
 
 	})
+
+	//InsertStoreName(c)
 
 	//Found values for the store
 	c.OnHTML("#root-app > div > div.layout-main.u-clearfix > div.layout-col.layout-col--right", func(e *colly.HTMLElement) {
@@ -48,14 +49,10 @@ func Create(c *colly.Collector, file *os.File, pageUntil int) {
 		ubicacion := e.ChildText("div.card-section.seller-location > p.card-description.text-light")
 		cantidadDeVentas := e.ChildText("#root-app div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation > div.reputation-info.block > dl > dd:nth-child(1) > strong")
 
-		//Write the file with the obtains values
-		writer := csv.NewWriter(file)
-		defer writer.Flush()
-
 		// Set header if don't have
 		if setHeader == 0 {
 			// Write CSV header
-			writer.Write([]string{"ID", "Producto", "Precio", "Stock", "Garantia", "Ubicacion", "Cantidad de Ventas"})
+			writer.Write([]string{"ID", "Tienda", "Producto", "Precio", "Stock", "Garantia", "Ubicacion", "Cantidad de Ventas"})
 			setHeader = setHeader + 1
 		}
 
@@ -73,6 +70,7 @@ func Create(c *colly.Collector, file *os.File, pageUntil int) {
 		//Write the file with obtains values
 		writer.Write([]string{
 			infoStore.Id,
+			"",
 			infoStore.Producto,
 			infoStore.Precio,
 			infoStore.Stock,
@@ -80,25 +78,27 @@ func Create(c *colly.Collector, file *os.File, pageUntil int) {
 			infoStore.Ubicacion,
 			infoStore.CantidadDeVentas,
 		})
-
 	})
+}
 
-	// //Move to link reputacion in the publiation
-	// fmt.Println("ENTRO")
-	// c.OnHTML("div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation  a[href]", func(e *colly.HTMLElement) {
-	// 	link := e.Attr("href")
-	// 	fmt.Printf("Link found: -> %s\n", link)
-	// 	c.Visit(e.Request.AbsoluteURL(link))
-	// })
-	// //Found name Store in Reputation page
-	// c.OnHTML("div.store-info > div.store-info-title", func(e *colly.HTMLElement) {
-	// 	store := e.ChildText("#store-info__name")
-	// 	fmt.Println(store)
-	// })
+func InsertStoreName(c *colly.Collector, writer *csv.Writer) {
+	c.OnHTML("div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation  a[href]", func(e *colly.HTMLElement) {
 
+		link := e.Attr("href")
+
+		//fmt.Printf("Link found: -> %s\n", link)
+
+		//If link is a String and we know the link for all profiles is : https://perfil.mercadolibre.com.co/NAME-PROFAILE
+		//This URL have 35 words until name profile
+		writer.Write([]string{
+			string(link[35:]),
+		})
+	})
+}
+
+func NextPage(c *colly.Collector, pageUntil int) {
 	//NEXT PAGE
 	c.OnHTML("#root-app > div > div > section > div.ui-search-pagination > ul > li.andes-pagination__button.andes-pagination__button--next > a[href]", func(e *colly.HTMLElement) {
-
 		if countPage < pageUntil {
 			link := e.Attr("href")
 			// Visit link found on page
@@ -107,5 +107,4 @@ func Create(c *colly.Collector, file *os.File, pageUntil int) {
 			c.Visit(e.Request.AbsoluteURL(link))
 		}
 	})
-
 }
