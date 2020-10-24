@@ -38,7 +38,7 @@ func main() {
 	writerStore.Write([]string{"Tienda", "Ventas"})
 
 	//Set here how many pages do you want Scrape
-	var pageUntil = 4
+	var pageUntil = 3
 
 	//Create a Collector
 	c := colly.NewCollector()
@@ -47,8 +47,8 @@ func main() {
 		fmt.Println("Visited", r.Request.URL)
 	})
 
-	controller.Create(c, writer, writerStore) //Call the controller Create - > found values, save CSV
-	controller.NextPage(c, pageUntil)         //Call next page until page we send
+	controller.Create(c, writer, writerStore, pageUntil) //Call the controller Create - > found values, save CSV
+	controller.NextPage(c, pageUntil)                    //Call next page until page we send
 
 	//Place here the site you want to Scrape
 	//Start scraping on https://celulares.mercadolibre.com.ar/telefonos

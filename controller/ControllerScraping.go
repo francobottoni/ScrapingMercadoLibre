@@ -30,12 +30,13 @@ var idProduct = 0
 var countPage = 1
 
 var bestStores [10]BestSeller
-var isHaveStore bool = true
+var isHaveStore bool = false
 var isEmpty int = -1
-var isMenorPos int = 23         //Set random number
+var isMenorPos int = -1         //Set random number
 var cantVentasAux int = 1000000 //Set default number
+var lastOne bool = false
 
-func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer) {
+func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer, pageUntil int) {
 
 	// //Move to link publication
 	c.OnHTML("div.ui-search-item__group.ui-search-item__group--title a[href]", func(e *colly.HTMLElement) {
@@ -44,8 +45,6 @@ func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer) {
 		c.Visit(e.Request.AbsoluteURL(link))
 
 	})
-
-	//InsertStoreName(c)
 
 	//Found values for the store
 	c.OnHTML("#root-app > div > div.layout-main.u-clearfix > div.layout-col.layout-col--right", func(e *colly.HTMLElement) {
@@ -82,8 +81,14 @@ func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer) {
 			CantidadDeVentas: cantidadDeVentas,
 		}
 
+		//if we scrap the lastOne publication, we send this bool true and we writeStore CSV with the last struct obtains
+		//50 publications for page
+		if idProduct == pageUntil*50 {
+			lastOne = true
+		}
+
 		//Call function BestSeller
-		GenerateBestSellers(infoStore, writerStore)
+		GenerateBestSellers(infoStore, writerStore, lastOne)
 
 		//Write the file with obtains values
 		writer.Write([]string{
@@ -124,16 +129,18 @@ func NextPage(c *colly.Collector, pageUntil int) {
 	})
 }
 
-func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer) {
+func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer, lastOne bool) {
 
 	//If the store has already exist in the Array Aux set isHaveStore false
 	for i := 0; i < len(bestStores); i++ {
-		if bestStores[i].CantidadDeVentas == values.CantidadDeVentas && bestStores[i].Store == values.Store {
-			isHaveStore = false
+		cantVentas, _ := strconv.Atoi(bestStores[i].CantidadDeVentas)
+		valuesVentas, _ := strconv.Atoi(values.CantidadDeVentas)
+		if cantVentas == valuesVentas && bestStores[i].Store == values.Store {
+			isHaveStore = true
 		}
 	}
 
-	if isHaveStore == true {
+	if isHaveStore == false {
 
 		for i := 0; i < len(bestStores); i++ {
 
@@ -146,28 +153,14 @@ func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer) {
 				for j := 1; j < len(bestStores); j++ {
 					if bestStores[j].CantidadDeVentas != "" {
 						cantVentas1, _ := strconv.Atoi(bestStores[j].CantidadDeVentas)
-						fmt.Println(cantVentas)
-						fmt.Println(cantVentas1)
-						if cantVentas < cantVentas1 {
-							if cantVentas < cantVentasAux {
+						if cantVentas1 < cantVentas {
+							if cantVentas1 < cantVentasAux {
 								//Set the lowest value and then replace it
-								isMenorPos = i
+								isMenorPos = j
 								cantVentasAux = cantVentas
 							}
 						}
 					}
-				}
-			}
-		}
-
-		if isMenorPos != 23 {
-			s, _ := strconv.Atoi(bestStores[isMenorPos].CantidadDeVentas)
-			s1, _ := strconv.Atoi(values.CantidadDeVentas)
-			//Replace the lower value with a new higher value
-			if s < s1 {
-				bestStores[isMenorPos] = BestSeller{
-					Store:            values.Store,
-					CantidadDeVentas: values.CantidadDeVentas,
 				}
 			}
 		}
@@ -179,11 +172,37 @@ func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer) {
 				CantidadDeVentas: values.CantidadDeVentas,
 			}
 			isEmpty = -1
+		} else {
+			//-1 is a default value set
+			if isMenorPos != -1 {
+				s, _ := strconv.Atoi(bestStores[isMenorPos].CantidadDeVentas)
+				s1, _ := strconv.Atoi(values.CantidadDeVentas)
+				//Replace the lower value with a new higher value
+				if s < s1 {
+					bestStores[isMenorPos] = BestSeller{
+						Store:            values.Store,
+						CantidadDeVentas: values.CantidadDeVentas,
+					}
+				}
+			}
 		}
 
+	} else {
+		//we set isHaveStore back to true
+		isHaveStore = false
 	}
 
 	fmt.Println(bestStores)
-	//we set isHaveStore back to true
-	isHaveStore = true
+
+	//Only write the CSV when scrap the lastOne product
+	if lastOne == true {
+		for i := 0; i < len(bestStores); i++ {
+			writerStore.Write([]string{
+				bestStores[i].Store,
+				bestStores[i].CantidadDeVentas,
+			})
+			writerStore.Flush()
+		}
+	}
+
 }
