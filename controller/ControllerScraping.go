@@ -32,8 +32,7 @@ var countPage = 1
 var bestStores [10]BestSeller
 var isHaveStore bool = false
 var isEmpty int = -1
-var isMenorPos int = -1         //Set random number
-var cantVentasAux int = 1000000 //Set default number
+var isMenorPos int = -1 //Set random number
 var lastOne bool = false
 
 func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer, pageUntil int) {
@@ -140,28 +139,15 @@ func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer, lastOne bool
 		}
 	}
 
+	//If the stores are not loaded yet, validate
 	if isHaveStore == false {
+		c := 0                    //counter to iterate the for
+		cantVentasAux := 10000000 //Set higher random number
 
 		for i := 0; i < len(bestStores); i++ {
-
-			cantVentas, _ := strconv.Atoi(bestStores[i].CantidadDeVentas)
-
 			//If array bestStores is empty, set this pos in isEmpty
 			if bestStores[i].Store == "" {
 				isEmpty = i
-			} else {
-				for j := 1; j < len(bestStores); j++ {
-					if bestStores[j].CantidadDeVentas != "" {
-						cantVentas1, _ := strconv.Atoi(bestStores[j].CantidadDeVentas)
-						if cantVentas1 < cantVentas {
-							if cantVentas1 < cantVentasAux {
-								//Set the lowest value and then replace it
-								isMenorPos = j
-								cantVentasAux = cantVentas
-							}
-						}
-					}
-				}
 			}
 		}
 
@@ -173,6 +159,25 @@ func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer, lastOne bool
 			}
 			isEmpty = -1
 		} else {
+			for j := 1; j < len(bestStores); j++ {
+
+				cantVentas1, _ := strconv.Atoi(bestStores[j].CantidadDeVentas)
+				cantVentas, _ := strconv.Atoi(bestStores[c].CantidadDeVentas)
+				if cantVentas1 < cantVentas {
+					if cantVentas1 < cantVentasAux {
+						//Set the lowest value and then replace it
+						isMenorPos = j
+						cantVentasAux = cantVentas1
+					}
+				} else if cantVentas < cantVentasAux {
+					//Set the lowest value and then replace it
+					isMenorPos = c
+					cantVentasAux = cantVentas
+				}
+
+				c++
+			}
+
 			//-1 is a default value set
 			if isMenorPos != -1 {
 				s, _ := strconv.Atoi(bestStores[isMenorPos].CantidadDeVentas)
@@ -185,6 +190,7 @@ func GenerateBestSellers(values StoreInfo, writerStore *csv.Writer, lastOne bool
 					}
 				}
 			}
+
 		}
 
 	} else {
