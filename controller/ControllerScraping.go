@@ -59,12 +59,6 @@ func Create(c *colly.Collector, writer *csv.Writer, writerStore *csv.Writer, pag
 		ubicacion := e.ChildText("div.card-section.seller-location > p.card-description.text-light")
 		cantidadDeVentas := e.ChildText("#root-app div.layout-description-wrapper > section.ui-view-more.vip-section-seller-info.new-reputation > div.reputation-info.block > dl > dd:nth-child(1) > strong")
 
-		// Set header if don't have
-		if setHeader == 0 {
-			// Write CSV header
-			setHeader = setHeader + 1
-		}
-
 		//Call the function that returns Store name
 		store := FoundStoreName(e)
 
